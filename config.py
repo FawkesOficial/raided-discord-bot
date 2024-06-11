@@ -8,7 +8,7 @@ import discord
 load_dotenv()
 
 BASE_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
-COMMANDS_DIR: pathlib.Path = BASE_DIR / "commands"
+COGS_DIR: pathlib.Path = BASE_DIR / "cogs"
 
 TOKEN: Optional[str] = os.getenv("TOKEN")
 PREFIX: str = '.'

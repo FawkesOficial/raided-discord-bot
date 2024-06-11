@@ -6,19 +6,19 @@ import config
 client = commands.Bot(command_prefix=config.PREFIX, intents=config.INTENTS)
 
 
-async def load_commands() -> None:
-    for commands_file in config.COMMANDS_DIR.glob("*.py"):
-        if commands_file.name != "__init__.py":
-            command: str = f"{config.COMMANDS_DIR.relative_to(config.BASE_DIR)}.{commands_file.name.removesuffix('.py')}"
+async def load_cogs() -> None:
+    for cog_file in config.COGS_DIR.glob("*.py"):
+        if cog_file.name != "__init__.py":
+            cog: str = f"{config.COGS_DIR.relative_to(config.BASE_DIR)}.{cog_file.name.removesuffix('.py')}"
 
-            await client.load_extension(command)
+            await client.load_extension(cog)
 
-            print(f"[+] Loaded {command}")
+            print(f"[+] Loaded {cog}")
 
 
 @client.event
 async def on_ready():
-    await load_commands()
+    await load_cogs()
 
     await client.tree.sync()
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="/help"))
