@@ -1,19 +1,25 @@
-import os
-from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 
-load_dotenv()
+import config
 
-intents = discord.Intents.default()
+client = commands.Bot(command_prefix=config.PREFIX, intents=config.INTENTS)
 
-client = commands.Bot(command_prefix='.', intents=intents)
 
-command = client.tree.command
+async def load_commands() -> None:
+    for commands_file in config.COMMANDS_DIR.glob("*.py"):
+        if commands_file.name != "__init__.py":
+            command: str = f"{config.COMMANDS_DIR.relative_to(config.BASE_DIR)}.{commands_file.name.removesuffix('.py')}"
+
+            await client.load_extension(command)
+
+            print(f"[+] Loaded {command}")
 
 
 @client.event
 async def on_ready():
+    await load_commands()
+
     await client.tree.sync()
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="/help"))
 
@@ -25,7 +31,7 @@ async def on_ready():
 
 
 def main() -> None:
-    client.run(os.getenv("TOKEN"))
+    client.run(config.TOKEN)
 
 
 if __name__ == "__main__":
