@@ -95,9 +95,19 @@ class TeamCog(commands.Cog, name="team"):
             ephemeral=True
         )
 
-    @group.command(name="score", description="Displays your team's score")
-    async def team_score(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"[DEBUG] score: 1000", ephemeral=True)
+    @group.command(name="points", description="Displays your team's points")
+    async def team_points(self, interaction: discord.Interaction):
+        player: discord.Member = interaction.user
+
+        # check if player is not in a team
+        current_team = self.players.get(player.id, TeamCog.NO_TEAM)
+        if current_team == TeamCog.NO_TEAM:
+            await interaction.response.send_message("You are not in a team!", ephemeral=True)
+            return
+
+        await interaction.response.send_message(
+            f"\"{current_team.name}\" has {current_team.points} points", ephemeral=True
+        )
 
     @group.command(name="leave", description="Leaves your current team")
     async def team_leave(self, interaction: discord.Interaction):
