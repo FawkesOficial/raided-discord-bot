@@ -13,3 +13,4 @@ COGS_DIR: pathlib.Path = BASE_DIR / "cogs"
 TOKEN: Optional[str] = os.getenv("TOKEN")
 PREFIX: str = '.'
 INTENTS: discord.Intents = discord.Intents.default()
+INTENTS.members = True
