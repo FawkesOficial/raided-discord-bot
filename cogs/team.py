@@ -17,9 +17,15 @@ class TeamCog(commands.Cog, name="team"):
 
     @app_commands.command(name="teams", description="Lists all the existing teams")
     async def teams(self, interaction: discord.Interaction):
-        await interaction.response.send_message(
-            f"Teams:\n" + "\n".join([f"{team.name} - {len(team.players)} player(s)" for team in self.teams.values()])
-        )
+        teams: list[Team] = self.teams.values()
+
+        if teams:
+            await interaction.response.send_message(
+                f"Teams:\n"
+                "\n".join([f"{team.name} - {len(team.players)} player(s)" for team in self.teams.values()])
+            )
+        else:
+            await interaction.response.send_message("No teams registered.")
 
     group = app_commands.Group(name="team", description="Team related commands")
 
