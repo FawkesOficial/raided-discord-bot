@@ -12,13 +12,13 @@ class TeamCog(commands.Cog, name="team"):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot: commands.Bot = bot
-        self.teams: dict[str, Team] = dict()    # team_name -> Team
-        self.players: dict[int, Team] = dict()  # player_id -> Team
+        self.teams: dict[str, Team] = dict()              # team_name -> Team
+        self.player_id_to_team: dict[int, Team] = dict()  # player_id -> Team
 
     @app_commands.command(name="teams", description="Lists all the existing teams")
     async def teams(self, interaction: discord.Interaction):
         await interaction.response.send_message(
-            f"Teams:\n" + "\n".join([team.name for team in self.teams.values()])
+            f"Teams:\n" + "\n".join([f"{team.name} - {len(team.players)} player(s)" for team in self.teams.values()])
         )
 
     group = app_commands.Group(name="team", description="Team related commands")
@@ -28,11 +28,11 @@ class TeamCog(commands.Cog, name="team"):
     async def team_create(self, interaction: discord.Interaction, name: str):
         player: discord.Member = interaction.user
 
-        # check if player is already in a team
-        current_team = self.players.get(player.id, TeamCog.NO_TEAM)
+        # check if the player is not on a team
+        current_team = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
         if current_team != TeamCog.NO_TEAM:
             await interaction.response.send_message(
-                f"You are already in a team! Please leave your current team first: \"{current_team.name}\".",
+                f"You are already on a team! Please leave your current team first: \"{current_team.name}\".",
                 ephemeral=True
             )
             return
@@ -48,13 +48,43 @@ class TeamCog(commands.Cog, name="team"):
         new_team: Team = Team(name=name, owner_id=player.id)
 
         self.teams[name] = new_team
-        self.players[player.id] = new_team
+        self.player_id_to_team[player.id] = new_team
 
         await interaction.response.send_message(f"Team \"{name}\" was successfully created!", ephemeral=True)
 
     @group.command(name="disband", description="Disbands/deletes your team")
     async def team_disband(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"[DEBUG] disbanding...", ephemeral=True)
+        player: discord.Member = interaction.user
+
+        # check if the player is on a team
+        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
+        if current_team == TeamCog.NO_TEAM:
+            await interaction.response.send_message("You are not on a team!", ephemeral=True)
+            return
+
+        # check if the player is the owner of the team
+        if current_team.owner_id != player.id:
+            await interaction.response.send_message("You are not the team's owner!", ephemeral=True)
+            return
+
+        for team_player_id in current_team.players:
+            self.player_id_to_team.pop(team_player_id, None)
+
+            # inform/notify all players from the team that they no longer have a team (except for the owner)
+            if team_player_id != player.id:
+                team_player: discord.Member | None = interaction.guild.get_member(team_player_id)
+                await team_player.send(
+                    f"{player.display_name} disbanded/deleted the team you were on ({current_team.name}). "
+                    "You no longer have a team!"
+                )
+
+        self.teams.pop(current_team.name)
+
+        await interaction.response.send_message(
+            f"Successfully disbanded/deleted \"{current_team.name}\". "
+            "You no longer have a team!",
+            ephemeral=True
+        )
 
     @group.command(name="transfer_ownership", description="Transfers your team's ownership to another player")
     @app_commands.describe(player="The player to transfer the ownership to")
@@ -77,10 +107,10 @@ class TeamCog(commands.Cog, name="team"):
     async def team_list(self, interaction: discord.Interaction):
         player: discord.Member = interaction.user
 
-        # check if player is not in a team
-        current_team: Team | TeamCog.NO_TEAM = self.players.get(player.id, TeamCog.NO_TEAM)
+        # check if player is not on a team
+        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
         if current_team == TeamCog.NO_TEAM:
-            await interaction.response.send_message("You are not in a team!", ephemeral=True)
+            await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
         team_players: list[discord.Member] = []
@@ -99,10 +129,10 @@ class TeamCog(commands.Cog, name="team"):
     async def team_points(self, interaction: discord.Interaction):
         player: discord.Member = interaction.user
 
-        # check if player is not in a team
-        current_team = self.players.get(player.id, TeamCog.NO_TEAM)
+        # check if player is not on a team
+        current_team = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
         if current_team == TeamCog.NO_TEAM:
-            await interaction.response.send_message("You are not in a team!", ephemeral=True)
+            await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
         await interaction.response.send_message(
@@ -113,14 +143,14 @@ class TeamCog(commands.Cog, name="team"):
     async def team_leave(self, interaction: discord.Interaction):
         player: discord.Member = interaction.user
 
-        # check if player is not in a team
-        current_team = self.players.get(player.id, TeamCog.NO_TEAM)
+        # check if player is not on a team
+        current_team = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
         if current_team == TeamCog.NO_TEAM:
-            await interaction.response.send_message("You are not in a team!", ephemeral=True)
+            await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
         current_team.remove_player(player.id)
-        self.players.pop(player.id)
+        self.player_id_to_team.pop(player.id)
 
         await interaction.response.send_message(f"Successfully left team \"{current_team.name}\"", ephemeral=True)
 
