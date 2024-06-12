@@ -1,48 +1,129 @@
+from typing import List
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from models import Team, Player
 
-class Team(commands.Cog, name="team"):
+
+class TeamCog(commands.Cog, name="team"):
     """Team related commands."""
 
     def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
+        self.bot: commands.Bot = bot
+        self.team_by_name: dict[str, Team] = dict()    # team_name -> Team
+        self.player_by_id: dict[int, Player] = dict()  # player_id -> Player
+
+    @app_commands.command(name="teams", description="Lists all the existing teams")
+    async def teams(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            f"Teams:\n" + "\n".join([team.name for team in self.team_by_name.values()])
+        )
 
     group = app_commands.Group(name="team", description="Team related commands")
 
     @group.command(name="create", description="Creates a new team")
     @app_commands.describe(name="The name of the team")
     async def team_create(self, interaction: discord.Interaction, name: str):
-        await interaction.response.send_message(f"[DEBUG] Created team with name \"{name}\"")
+        user: discord.Member = interaction.user
+        if user.id not in self.player_by_id:
+            self.player_by_id[user.id] = Player(user)
+
+        player: Player = self.player_by_id[user.id]
+
+        # check if player is already in a team
+        if player.has_team:
+            await interaction.response.send_message(
+                f"You are already in a team! Please leave your current team first: \"{player.team_name}\".",
+                ephemeral=True
+            )
+            return
+
+        # check if a team with the given name already exists
+        if name in self.team_by_name:
+            await interaction.response.send_message(
+                f"A team with the name \"{name}\" already exits! Please choose a different name.",
+                ephemeral=True
+            )
+            return
+
+        new_team: Team = Team(name=name, owner=player)
+
+        self.team_by_name[name] = new_team
+        player.team_name = name
+
+        await interaction.response.send_message(f"Team \"{name}\" was successfully created!", ephemeral=True)
 
     @group.command(name="disband", description="Disbands/deletes your team")
     async def team_disband(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"[DEBUG] disbanding...")
+        await interaction.response.send_message(f"[DEBUG] disbanding...", ephemeral=True)
 
     @group.command(name="transfer_ownership", description="Transfers your team's ownership to another player")
     @app_commands.describe(player="The player to transfer the ownership to")
     async def team_transfer_ownership(self, interaction: discord.Interaction, player: discord.Member):
-        await interaction.response.send_message(f"[DEBUG] Transferred ownership to \"{player.name}\"")
+        await interaction.response.send_message(f"[DEBUG] Transferred ownership to \"{player.name}\"", ephemeral=True)
 
     @group.command(name="invite", description="Invites a player to your team")
     @app_commands.describe(player="The player to invite")
     async def team_invite(self, interaction: discord.Interaction, player: discord.Member):
-        await interaction.response.send_message(f"[DEBUG] Invited \"{player.name}\"")
+        await interaction.response.send_message(f"[DEBUG] Invited \"{player.name}\"", ephemeral=True)
 
     @group.command(name="remove", description="Removes a player from your team")
     @app_commands.describe(player="The player to remove")
     async def team_remove(self, interaction: discord.Interaction, player: discord.Member):
-        await interaction.response.send_message(f"[DEBUG] Removed \"{player.name}\"")
+        await interaction.response.send_message(f"[DEBUG] Removed \"{player.name}\"", ephemeral=True)
 
     @group.command(name="list", description="Lists the players on your team")
     async def team_list(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"[DEBUG] players...")
+        user: discord.Member = interaction.user
+        if user.id not in self.player_by_id:
+            self.player_by_id[user.id] = Player(user)
+
+        player: Player = self.player_by_id[user.id]
+
+        # check if player is not in a team
+        if not player.has_team:
+            await interaction.response.send_message(
+                f"You are not in a team!",
+                ephemeral=True
+            )
+            return
+
+        current_team: Team = self.team_by_name[player.team_name]
+
+        await interaction.response.send_message(
+            f"\"{current_team.name}\" players:\n" + "\n".join([player.name for player in current_team.players]),
+            ephemeral=True
+        )
 
     @group.command(name="score", description="Displays your team's score")
     async def team_score(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"[DEBUG] score: 1000")
+        await interaction.response.send_message(f"[DEBUG] score: 1000", ephemeral=True)
+
+    @group.command(name="leave", description="Leaves your current team")
+    async def team_score(self, interaction: discord.Interaction):
+        user: discord.Member = interaction.user
+        if user.id not in self.player_by_id:
+            self.player_by_id[user.id] = Player(user)
+
+        player: Player = self.player_by_id[user.id]
+
+        # check if player is not in a team
+        if not player.has_team:
+            await interaction.response.send_message(
+                f"You are not in a team!",
+                ephemeral=True
+            )
+            return
+
+        current_team: Team = self.team_by_name[player.team_name]
+
+        current_team.remove_player(player)
+        player.team_name = None
+
+        await interaction.response.send_message(f"Successfully left team \"{current_team.name}\"", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Team(bot))
+    await bot.add_cog(TeamCog(bot))
