@@ -105,6 +105,22 @@ class TeamCog(commands.Cog, name="team"):
     @group.command(name="invite", description="Invites a player to your team")
     @app_commands.describe(player="The player to invite")
     async def team_invite(self, interaction: discord.Interaction, player: discord.Member):
+        team_owner: discord.Member = interaction.user
+
+        # check if player is not on a team
+        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(team_owner.id, TeamCog.NO_TEAM)
+        if current_team == TeamCog.NO_TEAM:
+            await interaction.response.send_message("You are not on a team!", ephemeral=True)
+            return
+
+        # check if the player is the owner of the team
+        if current_team.owner_id != team_owner.id:
+            await interaction.response.send_message("You are not the team's owner!", ephemeral=True)
+            return
+
+        current_team.add_player(player.id)
+        self.player_id_to_team[player.id] = current_team
+
         await interaction.response.send_message(f"[DEBUG] Invited \"{player.display_name}\"", ephemeral=True)
 
     @group.command(name="remove", description="Removes a player from your team")
@@ -177,7 +193,7 @@ class TeamCog(commands.Cog, name="team"):
                         f"{previous_owner.display_name} left the team you are on ({current_team.name}). "
                         "You are now the team's owner!"
                     )
-                    await new_owner.send(f"Successfully transferred ownership to {current_team.name}!")
+
             else:
                 # if the team becomes empty after the owner leaves, delete/remove it
                 self.teams.pop(current_team.name)
