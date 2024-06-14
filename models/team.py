@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 
 
-class PlayerAlreadyInTeam(Exception):
+class PlayerAlreadyOnTheTeam(Exception):
 
     def __init__(self, player_id: int, team_name: str):
-        super().__init__(f"player {player_id} is already in the team \"{team_name}\"")
+        super().__init__(f"player {player_id} is already on the team \"{team_name}\"")
 
 
-class PlayerNotInTeam(Exception):
+class PlayerNotOnTheTeam(Exception):
 
     def __init__(self, player_id: int, team_name: str):
         super().__init__(f"player {player_id} is not on the team \"{team_name}\"")
@@ -34,11 +34,11 @@ class Team:
         Adds a player to the team
 
         :param player_id: the player to add to the team
-        :raises PlayerAlreadyInTeam: if the player is already in the team
+        :raises PlayerAlreadyOnTheTeam: if the player is already on the team
         """
 
         if player_id in self.players:
-            raise PlayerAlreadyInTeam(player_id, self.name)
+            raise PlayerAlreadyOnTheTeam(player_id, self.name)
 
         self.players.append(player_id)
 
@@ -47,11 +47,11 @@ class Team:
         Removes a player from the team
 
         :param player_id: the player to remove from the team
-        :raises PlayerNotInTeam: if the player is not in the team
+        :raises PlayerNotOnTheTeam: if the player is not in the team
         """
 
         if player_id not in self.players:
-            raise PlayerNotInTeam(player_id, self.name)
+            raise PlayerNotOnTheTeam(player_id, self.name)
 
         self.players.remove(player_id)
 
@@ -60,14 +60,23 @@ class Team:
         Removes a player from the team
 
         :param new_owner_id: the player to transfer the ownership to
-        :raises PlayerNotInTeam: if the player is not in the team
+        :raises PlayerNotOnTheTeam: if the player is not in the team
         :raises PlayerAlreadyIsOwner: if new_owner already is the team's owner
         """
 
         if new_owner_id not in self.players:
-            raise PlayerNotInTeam(new_owner_id, self.name)
+            raise PlayerNotOnTheTeam(new_owner_id, self.name)
 
         if self.owner_id == new_owner_id:
             raise PlayerAlreadyIsOwner(new_owner_id, self.name)
 
         object.__setattr__(self, "owner_id", new_owner_id)
+
+    def is_owned_by(self, player_id: int) -> bool:
+        """
+        Checks if the team is owned by the given player
+
+        :param player_id: the player to check
+        :return: `True` if the player is the owner of the team, `False` otherwise
+        """
+        return self.owner_id == player_id
