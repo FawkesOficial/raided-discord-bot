@@ -1,4 +1,5 @@
 import random
+from typing import Optional
 
 import discord
 from discord import app_commands
@@ -10,8 +11,6 @@ from models import Team
 class TeamCog(commands.Cog, name="team"):
     """Team related commands."""
 
-    NO_TEAM: str = ""
-
     def __init__(self, bot: commands.Bot) -> None:
         self.bot: commands.Bot = bot
         self.teams: dict[str, Team] = dict()              # team_name -> Team
@@ -19,9 +18,9 @@ class TeamCog(commands.Cog, name="team"):
 
     @app_commands.command(name="teams", description="Lists all the existing teams")
     async def teams(self, interaction: discord.Interaction):
-        teams: list[Team] = self.teams.values()
+        teams = self.teams.values()
 
-        if teams:
+        if len(teams) > 0:
             await interaction.response.send_message(
                 f"Teams:\n"
                 "\n".join([f"{team.name} - {len(team.players)} player(s)" for team in teams])
@@ -36,9 +35,8 @@ class TeamCog(commands.Cog, name="team"):
     async def team_create(self, interaction: discord.Interaction, name: str):
         player: discord.Member = interaction.user
 
-        # check if the player is not on a team
-        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
-        if current_team != TeamCog.NO_TEAM:
+        current_team: Optional[Team] = self.get_team(player.id)
+        if current_team is not None:
             await interaction.response.send_message(
                 f"You are already on a team! Please leave your current team first: \"{current_team.name}\".",
                 ephemeral=True
@@ -65,8 +63,8 @@ class TeamCog(commands.Cog, name="team"):
         player: discord.Member = interaction.user
 
         # check if the player is on a team
-        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
-        if current_team == TeamCog.NO_TEAM:
+        current_team: Optional[Team] = self.get_team(player.id)
+        if current_team is None:
             await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
@@ -108,8 +106,8 @@ class TeamCog(commands.Cog, name="team"):
         team_owner: discord.Member = interaction.user
 
         # check if player is not on a team
-        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(team_owner.id, TeamCog.NO_TEAM)
-        if current_team == TeamCog.NO_TEAM:
+        current_team: Optional[Team] = self.player_id_to_team.get(team_owner.id)
+        if current_team is None:
             await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
@@ -133,8 +131,8 @@ class TeamCog(commands.Cog, name="team"):
         player: discord.Member = interaction.user
 
         # check if player is not on a team
-        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
-        if current_team == TeamCog.NO_TEAM:
+        current_team: Optional[Team] = self.get_team(player.id)
+        if current_team is None:
             await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
@@ -155,8 +153,8 @@ class TeamCog(commands.Cog, name="team"):
         player: discord.Member = interaction.user
 
         # check if player is not on a team
-        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
-        if current_team == TeamCog.NO_TEAM:
+        current_team: Optional[Team] = self.get_team(player.id)
+        if current_team is None:
             await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
@@ -169,8 +167,8 @@ class TeamCog(commands.Cog, name="team"):
         player: discord.Member = interaction.user
 
         # check if player is not on a team
-        current_team: Team | TeamCog.NO_TEAM = self.player_id_to_team.get(player.id, TeamCog.NO_TEAM)
-        if current_team == TeamCog.NO_TEAM:
+        current_team: Optional[Team] = self.get_team(player.id)
+        if current_team is None:
             await interaction.response.send_message("You are not on a team!", ephemeral=True)
             return
 
@@ -202,6 +200,9 @@ class TeamCog(commands.Cog, name="team"):
         self.player_id_to_team.pop(player.id)
 
         await interaction.response.send_message(f"Successfully left team \"{current_team.name}\"", ephemeral=True)
+
+    def get_team(self, player_id: int) -> Optional[Team]:
+        return self.player_id_to_team.get(player_id)
 
 
 async def setup(bot: commands.Bot):
