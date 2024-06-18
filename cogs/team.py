@@ -191,7 +191,7 @@ class Replies:
     @staticmethod
     def team_disbanded_notify_player(*, previous_team: Team, previous_owner: Player) -> str:
         return f"{previous_owner.display_name} disbanded/deleted the team you were on ({previous_team.name}).\n" \
-             + "You no longer have a team!"
+              + "You no longer have a team!"
 
     @staticmethod
     def team_disbanded_successfully(*, disbanded_team: Team) -> str:
@@ -201,8 +201,8 @@ class Replies:
     @staticmethod
     def player_not_on_the_team(*, player: Player) -> str:
         return f"{player.mention} is not on your team.\n" \
-             + "Please choose a player that is on your team.\n" \
-             + "You can see the list of your team's player using `/team list`"
+              + "Please choose a player that is on your team.\n" \
+              + "You can see the list of your team's player using `/team list`"
 
     @staticmethod
     def ownership_transferred_successfully(*, team: Team, new_owner: Player) -> str:
@@ -219,7 +219,7 @@ class Replies:
     @staticmethod
     def team_players_list(*, team: Team, team_players: Iterable[Player]) -> str:
         return f"\"{team.name}\" players:\n" \
-             + "\n".join(map(lambda player: Replies.team_player_display(player=player), team_players))
+              + "\n".join(map(lambda player: Replies.team_player_display(player=player), team_players))
 
     @staticmethod
     def invited_player(*, player: Player) -> str:
@@ -251,6 +251,11 @@ class Replies:
     def player_owner_transfer_notify(*, team: Team, previous_owner: Player) -> str:
         return f"{previous_owner.display_name} transferred the ownership of \"{team.name}\" to you.\n" \
               + "You are now the team's owner!"
+
+    @staticmethod
+    def no_registered_team_with_name(*, team_name: str) -> str:
+        return f"There is no such team with name \"{team_name}\"!\n" \
+              + "To see the list of registered teams, use the command `/teams`"
 
 
 class TeamCog(commands.Cog, name="team"):
@@ -529,33 +534,51 @@ class TeamCog(commands.Cog, name="team"):
         await self.notify(player, Replies.team_player_removed_notify(team=owner_team))
         await self.reply_to(interaction, Replies.team_removed_player(team=owner_team, player=player))
 
-    # TODO: make this able to list other team's players as well
-    @group.command(name="list", description="Lists the players on your team")
-    async def team_list(self, interaction: discord.Interaction):
-        player: Player = interaction.user
+    @group.command(name="list", description="Lists the players on a team")
+    @app_commands.describe(team_name="The name of the team to list the players of")
+    async def team_list(self, interaction: discord.Interaction, team_name: str = None):
 
-        player_team: Optional[Team] = self.get_player_team(player)
+        if team_name is not None:
+            team: Optional[Team] = self._teams.get(team_name)
+            if team is None:
+                await self.reply_to(interaction, Replies.no_registered_team_with_name(team_name=team_name))
+                return
+        else:
+            player: Player = interaction.user
 
-        if player_team is None:
-            await self.reply_to(interaction, Replies.player_not_on_a_team)
-            return
+            player_team: Optional[Team] = self.get_player_team(player)
+
+            if player_team is None:
+                await self.reply_to(interaction, Replies.player_not_on_a_team)
+                return
+
+            team: Team = player_team
 
         await self.reply_to(
-            interaction, Replies.team_players_list(team=player_team, team_players=self.get_team_players(player_team))
+            interaction, Replies.team_players_list(team=team, team_players=self.get_team_players(team))
         )
 
-    # TODO: make this able to display other team's points as well
-    @group.command(name="points", description="Displays your team's points")
-    async def team_points(self, interaction: discord.Interaction):
-        player: Player = interaction.user
+    @group.command(name="points", description="Displays a team's points")
+    @app_commands.describe(team_name="The name of the team to display the points of")
+    async def team_points(self, interaction: discord.Interaction, team_name: str = None):
 
-        player_team: Optional[Team] = self.get_player_team(player)
+        if team_name is not None:
+            team: Optional[Team] = self._teams.get(team_name)
+            if team is None:
+                await self.reply_to(interaction, Replies.no_registered_team_with_name(team_name=team_name))
+                return
+        else:
+            player: Player = interaction.user
 
-        if player_team is None:
-            await self.reply_to(interaction, Replies.player_not_on_a_team)
-            return
+            player_team: Optional[Team] = self.get_player_team(player)
 
-        await self.reply_to(interaction, Replies.team_points_display(team=player_team))
+            if player_team is None:
+                await self.reply_to(interaction, Replies.player_not_on_a_team)
+                return
+
+            team: Team = player_team
+
+        await self.reply_to(interaction, Replies.team_points_display(team=team))
 
     @group.command(name="leave", description="Leaves your current team")
     async def team_leave(self, interaction: discord.Interaction):
