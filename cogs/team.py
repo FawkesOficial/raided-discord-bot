@@ -130,6 +130,23 @@ class CannotAddBotToTeam(Exception):
         super().__init__(f"cannot add a bot to a team")
 
 
+class PlayerNotOnATeam(Exception):
+
+    def __init__(self, player: Player):
+        super().__init__(f"player {player.display_name} is not on a team")
+
+        self.player = player
+
+
+class PlayerNotTeamOwner(Exception):
+
+    def __init__(self, player: Player, team: Team):
+        super().__init__(f"player {player.display_name} is not the owner of \"{team.name}\"")
+
+        self.player = player
+        self.team = team
+
+
 class Replies:
     # Static messages
     no_teams_registered: str = "No teams registered."
@@ -221,7 +238,9 @@ class Replies:
 
 
 class TeamCog(commands.Cog, name="team"):
-    """Team related commands."""
+    """
+    Team related commands.
+    """
 
     group = app_commands.Group(name="team", description="Team related commands")
 
@@ -299,6 +318,27 @@ class TeamCog(commands.Cog, name="team"):
 
         return filter(lambda x: x is not None, map(team_guild.get_member, team.players))
 
+    def get_team_owned_by_player(self, player: Player) -> Optional[Team]:
+        """
+        Wrapper around `self.get_player_team()`
+        Returns given `player`s team if he belongs to one and owns it.
+
+        :param player: the player whose team is going to be returned
+        :returns: the player's team, if he owns it
+        :raises PlayerNotOnATeam: if `player` does not belong to a team
+        :raises PlayerNotTeamOwner: if `player` is not the team's owner
+        """
+
+        player_team: Optional[Team] = self.get_player_team(player)
+
+        if player_team is None:
+            raise PlayerNotOnATeam(player)
+
+        if not player_team.is_owned_by(player):
+            raise PlayerNotTeamOwner(player, player_team)
+
+        return player_team
+
     # Individual Commands
     @app_commands.command(name="teams", description="Lists all the existing teams")
     async def teams(self, interaction: discord.Interaction):
@@ -343,13 +383,12 @@ class TeamCog(commands.Cog, name="team"):
 
         owner: Player = interaction.user
 
-        owner_team: Optional[Team] = self.get_player_team(owner)
-
-        if owner_team is None:
+        try:
+            owner_team: Team = self.get_team_owned_by_player(owner)
+        except PlayerNotOnATeam:
             await self.reply_to(interaction, Replies.player_not_on_a_team)
             return
-
-        if not owner_team.is_owned_by(owner):
+        except PlayerNotTeamOwner:
             await self.reply_to(interaction, Replies.player_not_team_owner)
             return
 
@@ -377,13 +416,12 @@ class TeamCog(commands.Cog, name="team"):
 
         owner: Player = interaction.user
 
-        owner_team: Optional[Team] = self.get_player_team(owner)
-
-        if owner_team is None:
+        try:
+            owner_team: Team = self.get_team_owned_by_player(owner)
+        except PlayerNotOnATeam:
             await self.reply_to(interaction, Replies.player_not_on_a_team)
             return
-
-        if not owner_team.is_owned_by(owner):
+        except PlayerNotTeamOwner:
             await self.reply_to(interaction, Replies.player_not_team_owner)
             return
 
@@ -411,13 +449,12 @@ class TeamCog(commands.Cog, name="team"):
 
         owner: Player = interaction.user
 
-        owner_team: Optional[Team] = self.get_player_team(owner)
-
-        if owner_team is None:
+        try:
+            owner_team: Team = self.get_team_owned_by_player(owner)
+        except PlayerNotOnATeam:
             await self.reply_to(interaction, Replies.player_not_on_a_team)
             return
-
-        if not owner_team.is_owned_by(owner):
+        except PlayerNotTeamOwner:
             await self.reply_to(interaction, Replies.player_not_team_owner)
             return
 
@@ -449,13 +486,12 @@ class TeamCog(commands.Cog, name="team"):
 
         owner: Player = interaction.user
 
-        owner_team: Optional[Team] = self.get_player_team(owner)
-
-        if owner_team is None:
+        try:
+            owner_team: Team = self.get_team_owned_by_player(owner)
+        except PlayerNotOnATeam:
             await self.reply_to(interaction, Replies.player_not_on_a_team)
             return
-
-        if not owner_team.is_owned_by(owner):
+        except PlayerNotTeamOwner:
             await self.reply_to(interaction, Replies.player_not_team_owner)
             return
 
@@ -469,6 +505,8 @@ class TeamCog(commands.Cog, name="team"):
 
         await self.notify(player, Replies.team_player_removed_notify(team=owner_team))
         await self.reply_to(interaction, Replies.team_removed_player(team=owner_team, player=player))
+
+        # TODO: not handling the case where the player removes himself
 
     # TODO: make this able to list other team's players as well
     @group.command(name="list", description="Lists the players on your team")
