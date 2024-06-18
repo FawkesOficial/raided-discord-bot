@@ -55,10 +55,14 @@ class Team:
 
         :param player: the player to remove from the team
         :raises PlayerNotOnTheTeam: if the player is not on the team
+        :raises CannotRemoveTeamOwner: if `player` is the team's owner
         """
 
         if player.id not in self.players:
             raise PlayerNotOnTheTeam(player, self)
+
+        if player.id == self.owner_id:
+            raise CannotRemoveTeamOwner
 
         self.players.remove(player.id)
 
@@ -147,6 +151,12 @@ class PlayerNotTeamOwner(Exception):
         self.team = team
 
 
+class CannotRemoveTeamOwner(Exception):
+
+    def __init__(self):
+        super().__init__(f"cannot remove the team's owner from the team")
+
+
 class Replies:
     # Static messages
     no_teams_registered: str = "No teams registered."
@@ -154,6 +164,7 @@ class Replies:
     player_not_team_owner: str = "You are not the team's owner!"
     player_already_is_owner: str = "You can't transfer the ownership to yourself!"
     trying_to_add_bot_to_team: str = "You cannot add a bot to your team!"
+    cant_remove_owner_from_team: str = "You cannot remove the team's owner from the team!"
 
     # Dynamic messages
     @staticmethod
@@ -500,13 +511,14 @@ class TeamCog(commands.Cog, name="team"):
         except PlayerNotOnTheTeam:
             await self.reply_to(interaction, Replies.player_not_on_the_team(player=player))
             return
+        except CannotRemoveTeamOwner:
+            await self.reply_to(interaction, Replies.cant_remove_owner_from_team)
+            return
 
         self._player_id_to_team.pop(player.id)
 
         await self.notify(player, Replies.team_player_removed_notify(team=owner_team))
         await self.reply_to(interaction, Replies.team_removed_player(team=owner_team, player=player))
-
-        # TODO: not handling the case where the player removes himself
 
     # TODO: make this able to list other team's players as well
     @group.command(name="list", description="Lists the players on your team")
