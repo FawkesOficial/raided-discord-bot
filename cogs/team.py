@@ -89,6 +89,47 @@ class Team:
         return self.owner_id == player.id
 
 
+class PlayerAlreadyOnTheTeam(Exception):
+
+    def __init__(self, player: Player, team: Team):
+        super().__init__(f"player {player.display_name} is already on the team \"{team.name}\"")
+
+        self.player = player
+        self.team = team
+
+
+class PlayerNotOnTheTeam(Exception):
+
+    def __init__(self, player: Player, team: Team):
+        super().__init__(f"player {player.display_name} is not on the team \"{team.name}\"")
+
+        self.player = player
+        self.team = team
+
+
+class PlayerAlreadyIsOwner(Exception):
+
+    def __init__(self, player: Player, team: Team):
+        super().__init__(f"player {player.display_name} already is the owner of the team \"{team.name}\"")
+
+        self.player = player
+        self.team = team
+
+
+class GuildNotFoundError(Exception):
+
+    def __init__(self, guild_id: int):
+        super().__init__(f"guild with id \"{guild_id}\" could not be found")
+
+        self.guild_id = guild_id
+
+
+class CannotAddBotToTeam(Exception):
+
+    def __init__(self):
+        super().__init__(f"cannot add a bot to a team")
+
+
 class Replies:
     # Static messages
     no_teams_registered: str = "No teams registered."
@@ -177,80 +218,6 @@ class Replies:
     @staticmethod
     def player_left_team_successfully(*, team: Team) -> str:
         return f"Successfully left \"{team.name}\""
-
-
-class PlayerAlreadyOnATeam(Exception):
-
-    def __init__(self, player: Player, current_team: Team):
-        super().__init__(f"player {player.display_name} is already on a team \"{current_team.name}\"")
-
-        self.player = player
-        self.current_team: Team = current_team
-
-
-class PlayerNotOnATeam(Exception):
-
-    def __init__(self, player: Player):
-        super().__init__(f"player {player.display_name} is not on a team")
-
-        self.player = player
-
-
-class PlayerNotTeamOwner(Exception):
-
-    def __init__(self, player: Player, team: Team):
-        super().__init__(f"player {player.display_name} is not the owner of \"{team.name}\"")
-
-        self.player = player
-        self.team = team
-
-
-class TeamAlreadyExists(Exception):
-    def __init__(self, team: Team):
-        super().__init__(f"team with the name \"{team.name}\" already exits")
-
-        self.team = team
-
-
-class PlayerAlreadyOnTheTeam(Exception):
-
-    def __init__(self, player: Player, team: Team):
-        super().__init__(f"player {player.display_name} is already on the team \"{team.name}\"")
-
-        self.player = player
-        self.team = team
-
-
-class PlayerNotOnTheTeam(Exception):
-
-    def __init__(self, player: Player, team: Team):
-        super().__init__(f"player {player.display_name} is not on the team \"{team.name}\"")
-
-        self.player = player
-        self.team = team
-
-
-class PlayerAlreadyIsOwner(Exception):
-
-    def __init__(self, player: Player, team: Team):
-        super().__init__(f"player {player.display_name} already is the owner of the team \"{team.name}\"")
-
-        self.player = player
-        self.team = team
-
-
-class GuildNotFoundError(Exception):
-
-    def __init__(self, guild_id: int):
-        super().__init__(f"guild with id \"{guild_id}\" could not be found")
-
-        self.guild_id = guild_id
-
-
-class CannotAddBotToTeam(Exception):
-
-    def __init__(self):
-        super().__init__(f"cannot add a bot to a team")
 
 
 class TeamCog(commands.Cog, name="team"):
