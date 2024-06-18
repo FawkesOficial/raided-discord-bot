@@ -609,7 +609,10 @@ class TeamCog(commands.Cog, name="team"):
                 # if the team becomes empty after the owner leaves, delete/remove it
                 self._teams.pop(current_team.name)
 
-        current_team.remove_player(player)
+        try:
+            current_team.remove_player(player)
+        except CannotRemoveTeamOwner:
+            pass
         self._player_id_to_team.pop(player.id)
 
         await self.reply_to(interaction, Replies.player_left_team_successfully(team=current_team))
