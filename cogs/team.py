@@ -247,6 +247,11 @@ class Replies:
     def player_left_team_successfully(*, team: Team) -> str:
         return f"Successfully left \"{team.name}\""
 
+    @staticmethod
+    def player_owner_transfer_notify(*, team: Team, previous_owner: Player) -> str:
+        return f"{previous_owner.display_name} transferred the ownership of \"{team.name}\" to you.\n" \
+              + "You are now the team's owner!"
+
 
 class TeamCog(commands.Cog, name="team"):
     """
@@ -350,7 +355,9 @@ class TeamCog(commands.Cog, name="team"):
 
         return player_team
 
-    # Individual Commands
+    #
+    #  - [ Individual Commands ] -
+    #
     @app_commands.command(name="teams", description="Lists all the existing teams")
     async def teams(self, interaction: discord.Interaction):
         teams: Collection[Team] = self.teams_list
@@ -360,7 +367,9 @@ class TeamCog(commands.Cog, name="team"):
         else:
             await self.reply_to(interaction, Replies.no_teams_registered)
 
-    # /team Commands
+    #
+    # - [ /team Commands ] -
+    #
     @group.command(name="create", description="Creates a new team")
     @app_commands.describe(team_name="The name of the team")
     async def team_create(self, interaction: discord.Interaction, team_name: str):
@@ -445,7 +454,7 @@ class TeamCog(commands.Cog, name="team"):
             await self.reply_to(interaction, Replies.player_already_is_owner)
             return
 
-        # TODO: notify the new owner that he is the new owner
+        await self.notify(new_owner, Replies.player_owner_transfer_notify(team=owner_team, previous_owner=owner))
 
         await self.reply_to(
             interaction, Replies.ownership_transferred_successfully(team=owner_team, new_owner=new_owner)
