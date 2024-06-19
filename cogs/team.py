@@ -270,6 +270,8 @@ class TeamCog(commands.Cog, name="team"):
 
         self._teams: dict[str, Team] = dict()              # team_name -> Team
         self._player_id_to_team: dict[int, Team] = dict()  # player_id -> Team
+        self._teams: dict[str, Team] = dict()                  # team_name -> Team
+        self._player_id_to_team_name: dict[int, str] = dict()  # player_id -> team_name
 
         # TODO: self.team_manager.load_database()
         # TODO: maybe even create an admin command like /teams load to manually load the teams
@@ -322,7 +324,7 @@ class TeamCog(commands.Cog, name="team"):
         :returns: the player's team, if he belongs to one.
         """
 
-        return self._player_id_to_team.get(player.id)
+        return self._teams.get(self._player_id_to_team_name.get(player.id))
 
     def get_team_players(self, team: Team) -> Collection[Player]:
         """
@@ -397,6 +399,7 @@ class TeamCog(commands.Cog, name="team"):
 
         self._teams[team_name] = new_team
         self._player_id_to_team[owner.id] = new_team
+        self._player_id_to_team_name[owner.id] = team_name
 
         await self.reply_to(interaction, Replies.team_created(created_team=new_team))
 
@@ -418,7 +421,7 @@ class TeamCog(commands.Cog, name="team"):
             return
 
         for team_player in self.get_team_players(owner_team):
-            self._player_id_to_team.pop(team_player.id)
+            self._player_id_to_team_name.pop(team_player.id)
 
             if team_player.id == owner_team.owner_id:
                 continue
@@ -493,7 +496,7 @@ class TeamCog(commands.Cog, name="team"):
             await self.reply_to(interaction, Replies.trying_to_add_bot_to_team)
             return
 
-        self._player_id_to_team[player.id] = owner_team
+        self._player_id_to_team_name[player.id] = owner_team.name
 
         # TODO: send message to invitee, notifying them that they have been invited to a team
         # TODO: with buttons for "Accept" and "Reject"
@@ -529,7 +532,7 @@ class TeamCog(commands.Cog, name="team"):
             await self.reply_to(interaction, Replies.cant_remove_owner_from_team)
             return
 
-        self._player_id_to_team.pop(player.id)
+        self._player_id_to_team_name.pop(player.id)
 
         await self.notify(player, Replies.team_player_removed_notify(team=owner_team))
         await self.reply_to(interaction, Replies.team_removed_player(team=owner_team, player=player))
@@ -613,7 +616,7 @@ class TeamCog(commands.Cog, name="team"):
             current_team.remove_player(player)
         except CannotRemoveTeamOwner:
             pass
-        self._player_id_to_team.pop(player.id)
+        self._player_id_to_team_name.pop(player.id)
 
         await self.reply_to(interaction, Replies.player_left_team_successfully(team=current_team))
 
