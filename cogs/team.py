@@ -1,10 +1,13 @@
+import json
 import random
-from typing import Optional, Collection, Iterable
+from typing import Optional, Collection, Iterable, Self
 from dataclasses import dataclass, field
 
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+import config
 
 type Player = discord.Member
 
@@ -30,7 +33,12 @@ class Team:
     points: int = 0
 
     def __post_init__(self):
-        self.players.append(self.owner_id)
+        if self.owner_id not in self.players:
+            self.players.append(self.owner_id)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Self:
+        return cls(**data)
 
     def add_player(self, player: Player) -> None:
         """
@@ -268,13 +276,32 @@ class TeamCog(commands.Cog, name="team"):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot: commands.Bot = bot
 
-        self._teams: dict[str, Team] = dict()              # team_name -> Team
-        self._player_id_to_team: dict[int, Team] = dict()  # player_id -> Team
         self._teams: dict[str, Team] = dict()                  # team_name -> Team
         self._player_id_to_team_name: dict[int, str] = dict()  # player_id -> team_name
 
-        # TODO: self.team_manager.load_database()
-        # TODO: maybe even create an admin command like /teams load to manually load the teams
+        self.load_data()
+
+    def load_data(self):
+        try:
+            with open(config.DATA_DIR / "teams.json", "r") as teams_file:
+                data = json.load(teams_file)
+                self._teams = {team_name: Team.from_dict(team_dict) for team_name, team_dict in data.items()}
+        except FileNotFoundError:
+            pass
+
+        try:
+            with open(config.DATA_DIR / "players.json", "r") as players_file:
+                data = json.load(players_file)
+                self._player_id_to_team_name = {int(player_id): team_name for player_id, team_name in data.items()}
+        except FileNotFoundError:
+            pass
+
+    def save_data(self) -> None:
+        with open(config.DATA_DIR / "teams.json", "w") as teams_file:
+            json.dump(self._teams, teams_file, default=vars)
+
+        with open(config.DATA_DIR / "players.json", "w") as players_file:
+            json.dump(self._player_id_to_team_name, players_file, default=vars)
 
     # TODO: this does not need to be inside TeamCog specifically
     @staticmethod
@@ -398,8 +425,9 @@ class TeamCog(commands.Cog, name="team"):
         new_team: Team = Team(name=team_name, owner_id=owner.id, guild_id=interaction.guild_id)
 
         self._teams[team_name] = new_team
-        self._player_id_to_team[owner.id] = new_team
         self._player_id_to_team_name[owner.id] = team_name
+
+        self.save_data()
 
         await self.reply_to(interaction, Replies.team_created(created_team=new_team))
 
@@ -433,6 +461,8 @@ class TeamCog(commands.Cog, name="team"):
 
         self._teams.pop(owner_team.name)
 
+        self.save_data()
+
         await self.reply_to(interaction, Replies.team_disbanded_successfully(disbanded_team=owner_team))
 
     @group.command(name="transfer_ownership", description="Transfers your team's ownership to a player on your team")
@@ -463,6 +493,8 @@ class TeamCog(commands.Cog, name="team"):
             return
 
         await self.notify(new_owner, Replies.player_owner_transfer_notify(team=owner_team, previous_owner=owner))
+
+        self.save_data()
 
         await self.reply_to(
             interaction, Replies.ownership_transferred_successfully(team=owner_team, new_owner=new_owner)
@@ -497,6 +529,8 @@ class TeamCog(commands.Cog, name="team"):
             return
 
         self._player_id_to_team_name[player.id] = owner_team.name
+
+        self.save_data()
 
         # TODO: send message to invitee, notifying them that they have been invited to a team
         # TODO: with buttons for "Accept" and "Reject"
@@ -535,6 +569,9 @@ class TeamCog(commands.Cog, name="team"):
         self._player_id_to_team_name.pop(player.id)
 
         await self.notify(player, Replies.team_player_removed_notify(team=owner_team))
+
+        self.save_data()
+
         await self.reply_to(interaction, Replies.team_removed_player(team=owner_team, player=player))
 
     @group.command(name="list", description="Lists the players on a team")
@@ -617,6 +654,8 @@ class TeamCog(commands.Cog, name="team"):
         except CannotRemoveTeamOwner:
             pass
         self._player_id_to_team_name.pop(player.id)
+
+        self.save_data()
 
         await self.reply_to(interaction, Replies.player_left_team_successfully(team=current_team))
 

@@ -9,6 +9,8 @@ load_dotenv()
 
 BASE_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
 COGS_DIR: pathlib.Path = BASE_DIR / "cogs"
+DATA_DIR: pathlib.Path = BASE_DIR / "data"
+os.makedirs(DATA_DIR, exist_ok=True)
 
 TOKEN: Optional[str] = os.getenv("TOKEN")
 PREFIX: str = '.'
